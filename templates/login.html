@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Product Chain Distribution - Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <h1>Product Chain Distribution</h1>
+        <h2>Login</h2>
+        {% if error %}
+            <div class="error-message">{{ error }}</div>
+        {% endif %}
+        <form method="POST" class="login-form">
+            <div class="form-group">
+                <label>Username:</label>
+                <input type="text" name="username" required>
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label>User Type:</label>
+                <select name="user_type" required>
+                    <option value="">-- Select Role --</option>
+                    <option value="manufacturer">Manufacturer</option>
+                    <option value="distributor">Distributor</option>
+                    <option value="customer">Customer</option>
+                </select>
+            </div>
+            <button type="submit" class="btn">Login</button>
+        </form>
+        <p><strong>Test Credentials:</strong></p>
+        <p>Manufacturer: nike_mfg / password123</p>
+        <p>Distributor: metro_dist / password123</p>
+        <p>Customer: john_doe / password123</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Inventory Management</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Product Name</th>
+            <th>Category</th>
+            <th>Available Quantity</th>
+            <th>Reorder Level</th>
+            <th>Unit Price</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for inv in inventory %}
+        <tr>
+            <td>{{ inv.product_name }}</td>
+            <td>{{ inv.category }}</td>
+            <td>{{ inv.quantity_available }}</td>
+            <td>{{ inv.reorder_level }}</td>
+            <td>₹{{ "%.2f"|format(inv.unit_price) }}</td>
+            <td>
+                {% if inv.quantity_available <= inv.reorder_level %}
+                    <span class="badge-danger">Low Stock</span>
+                {% else %}
+                    <span class="badge-success">Good</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

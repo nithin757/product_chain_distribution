@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Your Inventory</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Product Name</th>
+            <th>Category</th>
+            <th>Quantity</th>
+            <th>Current Price</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for inv in inventory %}
+        <tr>
+            <td>{{ inv.product_name }}</td>
+            <td>{{ inv.category }}</td>
+            <td>{{ inv.quantity_available }}</td>
+            <td>₹<span class="price-{{ inv.dist_inventory_id }}">{{ "%.2f"|format(inv.unit_price) }}</span></td>
+            <td>
+                <form method="POST" action="{{ url_for('update_distributor_price') }}" style="display:inline;">
+                    <input type="hidden" name="dist_inventory_id" value="{{ inv.dist_inventory_id }}">
+                    <input type="number" name="new_price" step="0.01" value="{{ inv.unit_price }}" required>
+                    <button type="submit" class="btn-small">Update Price</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

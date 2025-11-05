@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Products</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Product Name</th>
+            <th>Category</th>
+            <th>Unit Price</th>
+            <th>Manufacturing Cost</th>
+            <th>Stock</th>
+            <th>Reorder Level</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product in products %}
+        <tr>
+            <td>{{ product.product_name }}</td>
+            <td>{{ product.category }}</td>
+            <td>₹{{ "%.2f"|format(product.unit_price) }}</td>
+            <td>₹{{ "%.2f"|format(product.manufacturing_cost) }}</td>
+            <td>{{ product.quantity_available or 0 }}</td>
+            <td>{{ product.reorder_level or 0 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

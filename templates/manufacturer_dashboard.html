@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Manufacturer Dashboard</h2>
+<p>Welcome, {{ company_name }}!</p>
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Products</h3>
+        <p class="stat-value">{{ total_products }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Inventory Value</h3>
+        <p class="stat-value">₹{{ "%.2f"|format(inventory_value) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Low Stock Items</h3>
+        <p class="stat-value">{{ low_stock }}</p>
+    </div>
+</div>
+<h3>Recent Allocations</h3>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Distributor</th>
+            <th>Quantity</th>
+            <th>Date</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for allocation in recent_allocations %}
+        <tr>
+            <td>{{ allocation.product_name }}</td>
+            <td>{{ allocation.company_name }}</td>
+            <td>{{ allocation.allocated_quantity }}</td>
+            <td>{{ allocation.allocation_date }}</td>
+            <td>{{ allocation.status }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

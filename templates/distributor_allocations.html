@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Allocations Received</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Manufacturer</th>
+            <th>Quantity</th>
+            <th>Unit Price</th>
+            <th>Allocation Date</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alloc in allocations %}
+        <tr>
+            <td>{{ alloc.product_name }}</td>
+            <td>{{ alloc.manufacturer_name }}</td>
+            <td>{{ alloc.allocated_quantity }}</td>
+            <td>₹{{ "%.2f"|format(alloc.unit_price) }}</td>
+            <td>{{ alloc.allocation_date }}</td>
+            <td>{{ alloc.status }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

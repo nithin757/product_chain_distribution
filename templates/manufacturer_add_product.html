@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Add New Product</h2>
+{% if error %}
+    <div class="error-message">{{ error }}</div>
+{% endif %}
+{% if message %}
+    <div class="success-message">{{ message }}</div>
+{% endif %}
+<form method="POST" class="form">
+    <div class="form-group">
+        <label>Product Name:</label>
+        <input type="text" name="product_name" required>
+    </div>
+    <div class="form-group">
+        <label>Description:</label>
+        <textarea name="description" rows="4"></textarea>
+    </div>
+    <div class="form-group">
+        <label>Category:</label>
+        <select name="category" required>
+            <option value="">-- Select --</option>
+            <option value="Footwear">Footwear</option>
+            <option value="Apparel">Apparel</option>
+            <option value="Accessories">Accessories</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Unit Price:</label>
+        <input type="number" name="unit_price" step="0.01" required>
+    </div>
+    <div class="form-group">
+        <label>Manufacturing Cost:</label>
+        <input type="number" name="manufacturing_cost" step="0.01" required>
+    </div>
+    <div class="form-group">
+        <label>Weight:</label>
+        <input type="text" name="weight">
+    </div>
+    <div class="form-group">
+        <label>Dimensions:</label>
+        <input type="text" name="dimensions">
+    </div>
+    <div class="form-group">
+        <label>Initial Quantity:</label>
+        <input type="number" name="initial_quantity" value="0" required>
+    </div>
+    <div class="form-group">
+        <label>Reorder Level:</label>
+        <input type="number" name="reorder_level" value="100" required>
+    </div>
+    <button type="submit" class="btn">Add Product</button>
+</form>
+{% endblock %}

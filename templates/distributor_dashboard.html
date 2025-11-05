@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Distributor Dashboard</h2>
+<p>Welcome, {{ company_name }}!</p>
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Unique Products</h3>
+        <p class="stat-value">{{ unique_products }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Total Units</h3>
+        <p class="stat-value">{{ total_units }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Inventory Value</h3>
+        <p class="stat-value">₹{{ "%.2f"|format(inventory_value) }}</p>
+    </div>
+</div>
+{% endblock %}

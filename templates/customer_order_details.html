@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Order Details - #{{ order.order_id }}</h2>
+<div class="order-info">
+    <p><strong>Order Date:</strong> {{ order.order_date }}</p>
+    <p><strong>Total Amount:</strong> ₹{{ "%.2f"|format(order.total_amount) }}</p>
+    <p><strong>Status:</strong> {{ order.order_status }}</p>
+    <p><strong>Payment Status:</strong> {{ order.payment_status }}</p>
+    <p><strong>Shipping Address:</strong> {{ order.shipping_address }}</p>
+</div>
+<h3>Order Items</h3>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Quantity</th>
+            <th>Unit Price</th>
+            <th>Subtotal</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.product_name }}</td>
+            <td>{{ item.category }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>₹{{ "%.2f"|format(item.unit_price) }}</td>
+            <td>₹{{ "%.2f"|format(item.quantity * item.unit_price) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if shipment %}
+<h3>Shipment Information</h3>
+<div class="shipment-info">
+    <p><strong>Tracking Number:</strong> {{ shipment.tracking_number }}</p>
+    <p><strong>Carrier:</strong> {{ shipment.carrier }}</p>
+    <p><strong>Status:</strong> {{ shipment.shipment_status }}</p>
+    <p><strong>Estimated Delivery:</strong> {{ shipment.estimated_delivery_date }}</p>
+</div>
+{% endif %}
+{% if order.payment_status == 'pending' %}
+<h3>Process Payment</h3>
+<form method="POST" action="{{ url_for('process_payment', order_id=order.order_id) }}" class="form">
+    <div class="form-group">
+        <label>Payment Method:</label>
+        <select name="payment_method" required>
+            <option value="">-- Select Method --</option>
+            <option value="credit_card">Credit Card</option>
+            <option value="debit_card">Debit Card</option>
+            <option value="upi">UPI</option>
+            <option value="net_banking">Net Banking</option>
+            <option value="cash">Cash</option>
+        </select>
+    </div>
+    <button type="submit" class="btn">Process Payment</button>
+</form>
+{% endif %}
+{% endblock %}

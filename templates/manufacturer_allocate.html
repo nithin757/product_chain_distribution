@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Allocate Products to Distributors</h2>
+{% if error %}
+    <div class="error-message">{{ error }}</div>
+{% endif %}
+{% if message %}
+    <div class="success-message">{{ message }}</div>
+{% endif %}
+<form method="POST" class="form">
+    <div class="form-group">
+        <label>Select Distributor:</label>
+        <select name="distributor_id" required>
+            <option value="">-- Select Distributor --</option>
+            {% for dist in distributors %}
+            <option value="{{ dist.distributor_id }}">{{ dist.company_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Select Product:</label>
+        <select name="product_id" required>
+            <option value="">-- Select Product --</option>
+            {% for prod in products %}
+            <option value="{{ prod.product_id }}">{{ prod.product_name }} (Available: {{ prod.quantity_available or 0 }})</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Quantity:</label>
+        <input type="number" name="quantity" min="1" required>
+    </div>
+    <button type="submit" class="btn">Allocate</button>
+</form>
+{% endblock %}
