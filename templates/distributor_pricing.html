@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing Management - {{ company_name }}{% endblock %}
+
+{% block content %}
+
+<h1>💲 Pricing Management</h1>
+<p style="color: #7f8c8d; margin-bottom: 30px;">Update retail prices for your products (minimum 10% markup required)</p>
+
+<!-- Pricing Guidelines Alert -->
+<div class="alert alert-info" style="margin-bottom: 25px;">
+    <strong>💡 Pricing Information:</strong> 
+    <ul style="margin-left: 20px; margin-top: 10px;">
+        <li><strong>Cost Price:</strong> The price you paid to the manufacturer</li>
+        <li><strong>Retail Price:</strong> Your selling price to customers (must be at least 10% above cost)</li>
+        <li><strong>Your Profit Margin:</strong> Shown as a percentage of markup</li>
+    </ul>
+</div>
+
+<!-- Filter & Search -->
+<div style="background-color: white; padding: 20px; border-radius: 5px; margin-bottom: 25px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+    <h3 style="margin-bottom: 15px;">🔍 Search Products</h3>
+    <form method="GET" style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <div style="flex: 2; min-width: 250px;">
+            <label for="search" style="display: block; margin-bottom: 5px; font-size: 0.9em;">Product Name:</label>
+            <input type="text" id="search" name="search" placeholder="Search products..." value="{{ search_query or '' }}" style="width: 100%; padding: 8px;">
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label for="category" style="display: block; margin-bottom: 5px; font-size: 0.9em;">Category:</label>
+            <select name="category" id="category" style="width: 100%; padding: 8px;">
+                <option value="">All Categories</option>
+                <option value="Footwear">Footwear</option>
+                <option value="Apparel">Apparel</option>
+                <option value="Accessories">Accessories</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: flex-end;">
+            <button type="submit" class="btn btn-primary">Search</button>
+            <a href="/distributor_pricing" class="btn btn-info">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Pricing Table -->
+{% if products %}
+    <div style="background-color: white; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); overflow-x: auto;">
+        <table style="margin: 0;">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Quantity</th>
+                    <th>Cost Price (₹)</th>
+                    <th>Current Retail (₹)</th>
+                    <th>Min Required (₹)</th>
+                    <th>Current Markup</th>
+                    <th>New Retail Price</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>
+                        <strong>{{ product.product_name }}</strong>
+                        <br>
+                        <small style="color: #7f8c8d;">SKU: {{ product.sku }}</small>
+                    </td>
+                    <td>{{ product.category }}</td>
+                    <td style="text-align: center;">{{ product.quantity }}</td>
+                    <td style="text-align: right;">₹{{ "%.2f"|format(product.cost_price) }}</td>
+                    <td style="text-align: right;">
+                        <strong>₹{{ "%.2f"|format(product.current_price) }}</strong>
+                    </td>
+                    <td style="text-align: right; color: #7f8c8d;">
+                        ₹{{ "%.2f"|format(product.min_price) }}
+                    </td>
+                    <td style="text-align: center;">
+                        <span style="background-color: #d4edda; color: #155724; padding: 5px 10px; border-radius: 3px; font-weight: bold;">
+                            +{{ product.current_markup }}%
+                        </span>
+                    </td>
+                    <td>
+                        <form method="POST" action="/distributor/update_price/{{ product.dist_inventory_id }}" style="display: flex; gap: 5px;">
+                            <input type="number" name="new_price" step="0.01" min="{{ product.min_price }}" placeholder="Enter price" style="flex: 1; padding: 8px; border: 1px solid #bdc3c7; border-radius: 3px;" required>
+                            <button type="submit" class="btn btn-success" style="padding: 8px 12px; font-size: 0.85em;">Update</button>
+                        </form>
+                    </td>
+                    <td style="text-align: center;">
+                        <a href="/distributor/pricing_history/{{ product.dist_inventory_id }}" class="btn btn-info" style="padding: 5px 10px; font-size: 0.8em;">History</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Bulk Update Section -->
+    <div style="margin-top: 30px; background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+        <h3 style="margin-bottom: 15px;">📦 Bulk Update Prices</h3>
+        <p style="color: #7f8c8d; margin-bottom: 15px;">Update multiple products at once by applying a markup percentage or discount</p>
+        
+        <form method="POST" action="/distributor/bulk_update_prices" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div class="form-group">
+                <label for="category_filter">Category:</label>
+                <select name="category_filter" id="category_filter" style="width: 100%; padding: 8px;">
+                    <option value="">All Categories</option>
+                    <option value="Footwear">Footwear</option>
+                    <option value="Apparel">Apparel</option>
+                    <option value="Accessories">Accessories</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="markup_type">Update Type:</label>
+                <select name="markup_type" id="markup_type" style="width: 100%; padding: 8px;">
+                    <option value="percentage">By Percentage (%)</option>
+                    <option value="fixed">By Fixed Amount (₹)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="update_value">Value:</label>
+                <input type="number" name="update_value" id="update_value" step="0.01" placeholder="Enter value" style="width: 100%; padding: 8px;" required>
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+                <button type="submit" class="btn btn-warning" style="width: 100%; padding: 10px;">Apply Bulk Update</button>
+            </div>
+        </form>
+    </div>
+
+{% else %}
+    <div style="background-color: #d1ecf1; color: #0c5460; padding: 20px; border-radius: 5px; text-align: center;">
+        <p style="font-size: 1.1em; margin: 0;">📭 No products found</p>
+        <p style="margin-top: 10px;">You need to receive product allocations first to manage prices.</p>
+        <a href="/distributor_allocations" class="btn btn-primary" style="margin-top: 15px;">View Allocations</a>
+    </div>
+{% endif %}
+
+<!-- Pricing Strategy Tips -->
+<div style="margin-top: 40px; background-color: #fff9e6; padding: 20px; border-radius: 5px; border-left: 4px solid #f39c12;">
+    <h3 style="color: #7c5e00; margin-bottom: 15px;">💡 Pricing Strategy Tips</h3>
+    <ul style="margin-left: 20px; color: #7c5e00;">
+        <li style="margin-bottom: 10px;">
+            <strong>Competitive Pricing:</strong> Research competitor prices and adjust accordingly while maintaining minimum 10% markup
+        </li>
+        <li style="margin-bottom: 10px;">
+            <strong>Volume Discounts:</strong> Offer bulk discounts to attract larger orders (e.g., 5% off for 10+ units)
+        </li>
+        <li style="margin-bottom: 10px;">
+            <strong>Seasonal Adjustments:</strong> Increase markups during peak seasons and reduce during slow periods
+        </li>
+        <li style="margin-bottom: 10px;">
+            <strong>Product Mix:</strong> Use low margins on popular items to drive traffic and higher margins on niche products
+        </li>
+        <li>
+            <strong>Monitor Trends:</strong> Track which products are selling well and adjust pricing to maximize revenue
+        </li>
+    </ul>
+</div>
+
+<!-- Price History -->
+<div style="margin-top: 30px; background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+    <h3 style="margin-bottom: 15px;">📊 Recent Price Changes</h3>
+    
+    {% if price_history %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Old Price</th>
+                    <th>New Price</th>
+                    <th>Change</th>
+                    <th>Updated On</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for history in price_history|slice(0, 10) %}
+                <tr>
+                    <td>{{ history.product_name }}</td>
+                    <td style="text-align: right;">₹{{ "%.2f"|format(history.old_price) }}</td>
+                    <td style="text-align: right;">₹{{ "%.2f"|format(history.new_price) }}</td>
+                    <td style="text-align: center;">
+                        {% if history.new_price > history.old_price %}
+                            <span style="color: #27ae60;">+{{ "%.2f"|format(history.new_price - history.old_price) }}</span>
+                        {% else %}
+                            <span style="color: #e74c3c;">-{{ "%.2f"|format(history.old_price - history.new_price) }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ history.updated_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="text-align: center; color: #7f8c8d;">No price changes recorded yet</p>
+    {% endif %}
+</div>
+
+{% endblock %}

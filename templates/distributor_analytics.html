@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Analytics - {{ company_name }}{% endblock %}
+
+{% block content %}
+
+<h1>📈 Sales Analytics Dashboard</h1>
+<p style="color: #7f8c8d; margin-bottom: 30px;">Track your sales performance, revenue, and customer behavior</p>
+
+<!-- Key Metrics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>💵 Total Revenue</h3>
+        <div class="value">₹{{ "%.2f"|format(total_revenue) }}</div>
+        <p>All time</p>
+    </div>
+
+    <div class="stat-card" style="border-left-color: #27ae60;">
+        <h3>📊 Monthly Revenue</h3>
+        <div class="value">₹{{ "%.2f"|format(monthly_revenue) }}</div>
+        <p>This month</p>
+    </div>
+
+    <div class="stat-card" style="border-left-color: #9b59b6;">
+        <h3>🛒 Total Orders</h3>
+        <div class="value">{{ total_orders }}</div>
+        <p>Orders received</p>
+    </div>
+
+    <div class="stat-card" style="border-left-color: #e74c3c;">
+        <h3>👥 Total Customers</h3>
+        <div class="value">{{ total_customers }}</div>
+        <p>Unique customers</p>
+    </div>
+
+    <div class="stat-card" style="border-left-color: #f39c12;">
+        <h3>💰 Avg Order Value</h3>
+        <div class="value">₹{{ "%.0f"|format(avg_order_value) }}</div>
+        <p>Per order</p>
+    </div>
+
+    <div class="stat-card" style="border-left-color: #16a085;">
+        <h3>🔄 Repeat Rate</h3>
+        <div class="value">{{ repeat_customer_rate }}%</div>
+        <p>Customers</p>
+    </div>
+</div>
+
+<!-- Time Period Filter -->
+<div style="background-color: white; padding: 20px; border-radius: 5px; margin-bottom: 25px; margin-top: 25px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+    <h3 style="margin-bottom: 15px;">📅 Select Time Period</h3>
+    <form method="GET" style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <label for="period" style="display: block; margin-bottom: 5px; font-size: 0.9em;">Time Period:</label>
+            <select name="period" id="period" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+                <option value="today">Today</option>
+                <option value="week" selected>This Week</option>
+                <option value="month">This Month</option>
+                <option value="quarter">This Quarter</option>
+                <option value="year">This Year</option>
+                <option value="all">All Time</option>
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 200px;">
+            <label for="start_date" style="display: block; margin-bottom: 5px; font-size: 0.9em;">Or Select Date Range:</label>
+            <input type="date" name="start_date" id="start_date" style="width: 100%; padding: 8px;">
+        </div>
+
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; margin-bottom: 5px; font-size: 0.9em;">To:</label>
+            <input type="date" name="end_date" style="width: 100%; padding: 8px;">
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: flex-end;">
+            <button type="submit" class="btn btn-primary">Apply</button>
+            <a href="/distributor_analytics" class="btn btn-info">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Sales Trend Chart -->
+<div style="background-color: white; padding: 20px; border-radius: 5px; margin-bottom: 25px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+    <h3 style="margin-bottom: 15px;">📉 Sales Trend (Last 30 Days)</h3>
+    <div style="height: 300px; background-color: #f5f5f5; border-radius: 5px; display: flex; align-items: center; justify-content: center; color: #7f8c8d;">
+        <p>📊 Chart visualization would appear here (integrate with Chart.js)</p>
+    </div>
+</div>
+
+<!-- Top Products -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+    <!-- Top 5 Products -->
+    <div style="background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+        <h3 style="margin-bottom: 15px;">🏆 Top 5 Products</h3>
+        
+        {% if top_products %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Product</th>
+                    <th>Units Sold</th>
+                    <th>Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in top_products %}
+                <tr>
+                    <td style="text-align: center; font-weight: bold;">
+                        {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+                    </td>
+                    <td>{{ product.product_name }}</td>
+                    <td style="text-align: center;">{{ product.units_sold }}</td>
+                    <td style="text-align: right;">₹{{ "%.2f"|format(product.revenue) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="text-align: center; color: #7f8c8d;">No sales data available</p>
+        {% endif %}
+    </div>
+
+    <!-- Top 5 Customers -->
+    <div style="background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+        <h3 style="margin-bottom: 15px;">👥 Top 5 Customers</h3>
+        
+        {% if top_customers %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Orders</th>
+                    <th>Total Spent</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in top_customers %}
+                <tr>
+                    <td>
+                        <strong>{{ customer.name }}</strong>
+                        <br>
+                        <small style="color: #7f8c8d;">{{ customer.email }}</small>
+                    </td>
+                    <td style="text-align: center;">{{ customer.order_count }}</td>
+                    <td style="text-align: right;">₹{{ "%.2f"|format(customer.total_spent) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="text-align: center; color: #7f8c8d;">No customer data available</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Revenue by Category -->
+<div style="background-color: white; padding: 20px; border-radius: 5px; margin-bottom: 25px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+    <h3 style="margin-bottom: 15px;">📦 Revenue by Category</h3>
+    
+    {% if revenue_by_category %}
+    <table>
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Units Sold</th>
+                <th>Revenue</th>
+                <th>% of Total</th>
+                <th>Avg Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for category in revenue_by_category %}
+            <tr>
+                <td><strong>{{ category.category }}</strong></td>
+                <td style="text-align: center;">{{ category.units_sold }}</td>
+                <td style="text-align: right;">₹{{ "%.2f"|format(category.revenue) }}</td>
+                <td style="text-align: center;">
+                    <div style="background-color: #e3f2fd; padding: 5px; border-radius: 3px; font-weight: bold; color: #0d47a1;">
+                        {{ category.percentage }}%
+                    </div>
+                </td>
+                <td style="text-align: right;">₹{{ "%.2f"|format(category.avg_price) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align: center; color: #7f8c8d;">No category data available</p>
+    {% endif %}
+</div>
+
+<!-- Performance Metrics -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px;">
+    <div style="background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+        <p style="color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; margin-bottom: 10px;">Avg Revenue Per Day</p>
+        <p style="font-size: 2em; font-weight: bold; color: #3498db;">₹{{ "%.0f"|format(avg_daily_revenue) }}</p>
+    </div>
+
+    <div style="background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+        <p style="color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; margin-bottom: 10px;">Orders Per Day</p>
+        <p style="font-size: 2em; font-weight: bold; color: #27ae60;">{{ avg_orders_per_day }}</p>
+    </div>
+
+    <div style="background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+        <p style="color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; margin-bottom: 10px;">Growth Rate (MoM)</p>
+        <p style="font-size: 2em; font-weight: bold; color: {% if growth_rate >= 0 %}#27ae60{% else %}#e74c3c{% endif %};">
+            {{ growth_rate }}%
+        </p>
+    </div>
+
+    <div style="background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+        <p style="color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; margin-bottom: 10px;">Inventory Turnover</p>
+        <p style="font-size: 2em; font-weight: bold; color: #9b59b6;">{{ inventory_turnover }}x</p>
+    </div>
+</div>
+
+<!-- Order Status Distribution -->
+<div style="background-color: white; padding: 20px; border-radius: 5px; margin-bottom: 25px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+    <h3 style="margin-bottom: 15px;">📊 Order Status Distribution</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+        {% if order_stats %}
+            {% for stat in order_stats %}
+            <div style="padding: 15px; background-color: #f5f5f5; border-radius: 5px; text-align: center;">
+                <p style="color: #7f8c8d; font-size: 0.85em; text-transform: uppercase; margin-bottom: 8px;">{{ stat.status }}</p>
+                <p style="font-size: 2.5em; font-weight: bold; color: 
+                    {% if stat.status == 'pending' %}#f39c12
+                    {% elif stat.status == 'processing' %}#3498db
+                    {% elif stat.status == 'shipped' %}#9b59b6
+                    {% elif stat.status == 'delivered' %}#27ae60
+                    {% else %}#e74c3c
+                    {% endif %};
+                ">{{ stat.count }}</p>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Export Options -->
+<div style="background-color: #f0f7ff; padding: 20px; border-radius: 5px; border-left: 4px solid #3498db;">
+    <h3 style="color: #0c5460; margin-bottom: 15px;">📥 Export Reports</h3>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="/distributor/export_analytics/csv" class="btn btn-primary">📊 Export as CSV</a>
+        <a href="/distributor/export_analytics/pdf" class="btn btn-warning">📄 Export as PDF</a>
+        <a href="/distributor/email_report" class="btn btn-info">📧 Email Report</a>
+        <a href="/distributor/schedule_report" class="btn btn-success">⏰ Schedule Report</a>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Orders for {{ company_name }}{% endblock %}
+
+{% block content %}
+
+<h1>🛒 Customer Orders</h1>
+<p style="color: #7f8c8d; margin-bottom: 30px;">All orders placed by customers from your distributor inventory</p>
+
+<!-- Summary Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>📊 Total Orders</h3>
+        <div class="value">{{ total_orders }}</div>
+        <p>Orders received</p>
+    </div>
+
+    <div class="stat-card" style="border-left-color: #27ae60;">
+        <h3>💵 Total Revenue</h3>
+        <div class="value">₹{{ "%.2f"|format(total_revenue) }}</div>
+        <p>From all orders</p>
+    </div>
+
+    <div class="stat-card" style="border-left-color: #9b59b6;">
+        <h3>🚚 Pending Shipments</h3>
+        <div class="value">{{ pending_shipments }}</div>
+        <p>To be shipped</p>
+    </div>
+
+    <div class="stat-card" style="border-left-color: #f39c12;">
+        <h3>✅ Completed Orders</h3>
+        <div class="value">{{ completed_orders }}</div>
+        <p>Successfully delivered</p>
+    </div>
+</div>
+
+<!-- Filter Section -->
+<div style="background-color: white; padding: 20px; border-radius: 5px; margin-bottom: 25px; margin-top: 25px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+    <h3 style="margin-bottom: 15px;">🔍 Filter Orders</h3>
+    <form method="GET" style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <label for="status" style="display: block; margin-bottom: 5px; font-size: 0.9em;">Order Status:</label>
+            <select name="status" id="status" style="width: 100%; padding: 8px;">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label for="payment_status" style="display: block; margin-bottom: 5px; font-size: 0.9em;">Payment Status:</label>
+            <select name="payment_status" id="payment_status" style="width: 100%; padding: 8px;">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="failed">Failed</option>
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label for="date_range" style="display: block; margin-bottom: 5px; font-size: 0.9em;">Date Range:</label>
+            <select name="date_range" id="date_range" style="width: 100%; padding: 8px;">
+                <option value="">All Dates</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="3months">Last 3 Months</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: flex-end;">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            <a href="/distributor_orders" class="btn btn-info">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Orders Table -->
+{% if orders %}
+    <div style="background-color: white; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); overflow-x: auto;">
+        <table style="margin: 0;">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer Name</th>
+                    <th>Items</th>
+                    <th>Order Total</th>
+                    <th>Order Date</th>
+                    <th>Order Status</th>
+                    <th>Payment Status</th>
+                    <th>Shipment</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td><strong>#{{ order.order_id }}</strong></td>
+                    <td>
+                        {{ order.customer_name }}
+                        <br>
+                        <small style="color: #7f8c8d;">{{ order.customer_email }}</small>
+                    </td>
+                    <td style="text-align: center;">
+                        <strong>{{ order.item_count }}</strong> item(s)
+                        <br>
+                        <small style="color: #7f8c8d;">
+                            {% for product in order.products %}
+                                {{ product }}<br>
+                            {% endfor %}
+                        </small>
+                    </td>
+                    <td style="text-align: right;">
+                        <strong>₹{{ "%.2f"|format(order.total_amount) }}</strong>
+                    </td>
+                    <td>{{ order.order_date }}</td>
+                    <td>
+                        <span class="status {{ order.order_status }}">{{ order.order_status }}</span>
+                    </td>
+                    <td>
+                        <span class="status {{ order.payment_status }}">{{ order.payment_status }}</span>
+                    </td>
+                    <td>
+                        {% if order.shipment_status %}
+                            <span class="status {{ order.shipment_status }}" style="font-size: 0.8em;">{{ order.shipment_status }}</span>
+                            <br>
+                            <small style="color: #7f8c8d;">{{ order.tracking_number }}</small>
+                        {% else %}
+                            <span style="color: #7f8c8d;">Not shipped</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center;">
+                        <a href="/distributor/order_detail/{{ order.order_id }}" class="btn btn-primary" style="padding: 5px 10px; font-size: 0.8em; margin-bottom: 5px;">View Details</a>
+                        {% if order.order_status == 'processing' %}
+                            <a href="/distributor/ship_order/{{ order.order_id }}" class="btn btn-success" style="padding: 5px 10px; font-size: 0.8em;">Ship Order</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div style="margin-top: 20px; text-align: center;">
+        {% for page in range(1, total_pages + 1) %}
+            {% if page == current_page %}
+                <strong style="padding: 8px 12px; background-color: #3498db; color: white; border-radius: 3px;">{{ page }}</strong>
+            {% else %}
+                <a href="/distributor_orders?page={{ page }}" style="padding: 8px 12px; background-color: white; color: #3498db; border: 1px solid #3498db; border-radius: 3px; text-decoration: none; margin: 0 3px;">{{ page }}</a>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+{% else %}
+    <div style="background-color: #d1ecf1; color: #0c5460; padding: 20px; border-radius: 5px; text-align: center;">
+        <p style="font-size: 1.1em; margin: 0;">📭 No orders found</p>
+        <p style="margin-top: 10px;">Customers haven't placed any orders yet. Make sure your products are available and attractively priced.</p>
+    </div>
+{% endif %}
+
+<!-- Sales Analytics Summary -->
+<div style="margin-top: 40px; background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+    <h3 style="margin-bottom: 20px;">📈 Sales Analytics</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+        <div style="border-bottom: 2px solid #3498db; padding-bottom: 15px;">
+            <p style="color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; margin-bottom: 5px;">Average Order Value</p>
+            <p style="font-size: 1.8em; font-weight: bold; color: #3498db;">₹{{ "%.2f"|format(avg_order_value) }}</p>
+        </div>
+
+        <div style="border-bottom: 2px solid #27ae60; padding-bottom: 15px;">
+            <p style="color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; margin-bottom: 5px;">Most Popular Product</p>
+            <p style="font-size: 1.4em; font-weight: bold; color: #27ae60;">{{ top_product or 'N/A' }}</p>
+        </div>
+
+        <div style="border-bottom: 2px solid #9b59b6; padding-bottom: 15px;">
+            <p style="color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; margin-bottom: 5px;">Total Customers</p>
+            <p style="font-size: 1.8em; font-weight: bold; color: #9b59b6;">{{ unique_customers }}</p>
+        </div>
+
+        <div style="border-bottom: 2px solid #f39c12; padding-bottom: 15px;">
+            <p style="color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; margin-bottom: 5px;">This Month Revenue</p>
+            <p style="font-size: 1.8em; font-weight: bold; color: #f39c12;">₹{{ "%.2f"|format(monthly_revenue) }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div style="margin-top: 30px; background-color: #f0f7ff; padding: 20px; border-radius: 5px; border-left: 4px solid #3498db;">
+    <h3 style="color: #0c5460; margin-bottom: 15px;">💡 Quick Actions</h3>
+    <div>
+        <a href="/distributor_inventory" class="btn btn-info" style="margin-right: 10px;">Manage Inventory</a>
+        <a href="/distributor_pricing" class="btn btn-warning" style="margin-right: 10px;">Update Prices</a>
+        <a href="/distributor_analytics" class="btn btn-primary">View Full Analytics</a>
+    </div>
+</div>
+
+{% endblock %}

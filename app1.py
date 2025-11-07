@@ -6,7 +6,6 @@ from mysql.connector import errorcode
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-from decimal import Decimal
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_change_this_in_production'
@@ -178,11 +177,6 @@ def add_product():
         initial_quantity = int(request.form.get('initial_quantity'))
         reorder_level = int(request.form.get('reorder_level'))
         
-        # ✅ Validation: Minimum quantity must be at least 100
-        if initial_quantity < 100:
-            error = "Initial quantity must be 100 or more to add a new product."
-            return render_template('manufacturer_add_product.html', error=error)
-
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -214,7 +208,6 @@ def add_product():
             conn.close()
     
     return render_template('manufacturer_add_product.html', error=error, message=message)
-
 
 @app.route('/manufacturer/products')
 @login_required
@@ -280,98 +273,84 @@ def allocate_product():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Get manufacturer ID
+    # Get manufacturer id
     cursor.execute("SELECT manufacturer_id FROM manufacturer WHERE user_id = %s", (session['user_id'],))
-    manufacturer = cursor.fetchone()
-    if not manufacturer:
-        cursor.close()
-        conn.close()
-        return render_template('manufacturer_allocate.html', error="Manufacturer profile not found.")
+    manufacturer_id = cursor.fetchone()['manufacturer_id']
     
-    manufacturer_id = manufacturer['manufacturer_id']
-
     if request.method == 'POST':
         distributor_id = int(request.form.get('distributor_id'))
         product_id = int(request.form.get('product_id'))
         quantity = int(request.form.get('quantity'))
         
         try:
-            # 1️⃣ Check available inventory
-            cursor.execute("""
-                SELECT quantity_available 
-                FROM inventory 
-                WHERE product_id = %s AND manufacturer_id = %s
-            """, (product_id, manufacturer_id))
+            # Check inventory
+            cursor.execute("SELECT quantity_available FROM inventory WHERE product_id = %s AND manufacturer_id = %s",
+                         (product_id, manufacturer_id))
             inv_row = cursor.fetchone()
             
-            if not inv_row:
-                error = 'Inventory record not found for this product.'
-            elif inv_row['quantity_available'] < quantity:
-                error = f"Insufficient stock! Only {inv_row['quantity_available']} units available."
+            if not inv_row or inv_row['quantity_available'] < quantity:
+                error = 'Insufficient inventory'
             else:
-                # 2️⃣ Get product unit price
+                # Get product price
                 cursor.execute("SELECT unit_price FROM product WHERE product_id = %s", (product_id,))
                 product = cursor.fetchone()
-                if not product:
-                    error = 'Product not found.'
+                unit_price = product['unit_price']
+                
+                # Create allocation
+                cursor.execute("""INSERT INTO allocation 
+                                (manufacturer_id, distributor_id, product_id, allocated_quantity, unit_price, status)
+                                VALUES (%s, %s, %s, %s, %s, 'completed')""",
+                             (manufacturer_id, distributor_id, product_id, quantity, unit_price))
+                
+                # Deduct from manufacturer inventory
+                cursor.execute("""UPDATE inventory 
+                                SET quantity_available = quantity_available - %s 
+                                WHERE product_id = %s AND manufacturer_id = %s""",
+                             (quantity, product_id, manufacturer_id))
+                
+                # Update or insert distributor inventory
+                distributor_price = unit_price * 1.10
+                cursor.execute("""SELECT * FROM distributor_inventory 
+                                WHERE distributor_id = %s AND product_id = %s""",
+                             (distributor_id, product_id))
+                
+                if cursor.fetchone():
+                    cursor.execute("""UPDATE distributor_inventory 
+                                    SET quantity_available = quantity_available + %s, unit_price = %s
+                                    WHERE distributor_id = %s AND product_id = %s""",
+                                 (quantity, distributor_price, distributor_id, product_id))
                 else:
-                    unit_price = Decimal(product['unit_price'])
-                    distributor_price = (unit_price * Decimal('1.10')).quantize(Decimal('0.01'))  # 10% markup
-                    
-                    # 3️⃣ Record allocation
-                    cursor.execute("""
-                        INSERT INTO allocation 
-                            (manufacturer_id, distributor_id, product_id, allocated_quantity, unit_price, status)
-                        VALUES (%s, %s, %s, %s, %s, 'completed')
-                    """, (manufacturer_id, distributor_id, product_id, quantity, distributor_price))
-                    
-                    # 4️⃣ Deduct from manufacturer inventory
-                    cursor.execute("""
-                        UPDATE inventory 
-                        SET quantity_available = quantity_available - %s 
-                        WHERE product_id = %s AND manufacturer_id = %s
-                    """, (quantity, product_id, manufacturer_id))
-                    
-                    # 5️⃣ Add/update distributor inventory (atomic)
-                    cursor.execute("""
-                        INSERT INTO distributor_inventory (distributor_id, product_id, quantity_available, unit_price)
-                        VALUES (%s, %s, %s, %s)
-                        ON DUPLICATE KEY UPDATE
-                            quantity_available = quantity_available + VALUES(quantity_available),
-                            unit_price = VALUES(unit_price)
-                    """, (distributor_id, product_id, quantity, distributor_price))
-                    
-                    conn.commit()
-                    message = f'✅ Successfully allocated {quantity} units to distributor.'
-        
+                    cursor.execute("""INSERT INTO distributor_inventory 
+                                    (distributor_id, product_id, quantity_available, unit_price)
+                                    VALUES (%s, %s, %s, %s)""",
+                                 (distributor_id, product_id, quantity, distributor_price))
+                
+                conn.commit()
+                message = 'Product allocated successfully!'
         except Exception as e:
             conn.rollback()
-            error = f"Error during allocation: {str(e)}"
-        
-    # Load distributor and product dropdowns
+            error = f'Error: {str(e)}'
+    
+    # Get distributors
     cursor.execute("SELECT distributor_id, company_name FROM distributor ORDER BY company_name")
     distributors = cursor.fetchall()
     
-    cursor.execute("""
-        SELECT p.product_id, p.product_name, i.quantity_available 
-        FROM product p
-        LEFT JOIN inventory i ON p.product_id = i.product_id
-        WHERE p.manufacturer_id = %s
-        ORDER BY p.product_name
-    """, (manufacturer_id,))
+    # Get products
+    cursor.execute("""SELECT p.product_id, p.product_name, i.quantity_available 
+                      FROM product p
+                      LEFT JOIN inventory i ON p.product_id = i.product_id
+                      WHERE p.manufacturer_id = %s
+                      ORDER BY p.product_name""", (manufacturer_id,))
     products = cursor.fetchall()
     
     cursor.close()
     conn.close()
     
-    return render_template(
-        'manufacturer_allocate.html',
-        error=error,
-        message=message,
-        distributors=distributors,
-        products=products
-    )
-
+    return render_template('manufacturer_allocate.html', 
+                         error=error, 
+                         message=message,
+                         distributors=distributors, 
+                         products=products)
 
 @app.route('/manufacturer/allocations')
 @login_required
@@ -600,13 +579,7 @@ def place_order():
     product_id = int(request.form.get('product_id'))
     quantity = int(request.form.get('quantity'))
     shipping_address = request.form.get('shipping_address')
-
-    # ✅ Enforce minimum order quantity of 2
-    warning = None
-    if quantity < 2:
-        warning = "Minimum order quantity is 2. Your order has been adjusted automatically."
-        quantity = 2
-
+    
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
@@ -676,24 +649,12 @@ def place_order():
         cursor.close()
         conn.close()
         
-        response = {
-            'success': True,
-            'message': 'Order placed successfully',
-            'order_id': order_id
-        }
-
-        # Include warning if triggered
-        if warning:
-            response['warning'] = warning
-
-        return jsonify(response)
-
+        return jsonify({'success': True, 'message': 'Order placed successfully', 'order_id': order_id})
     except Exception as e:
         conn.rollback()
         cursor.close()
         conn.close()
         return jsonify({'success': False, 'message': str(e)})
-
 
 @app.route('/customer/orders')
 @login_required
