@@ -294,60 +294,58 @@ def allocate_product():
         distributor_id = int(request.form.get('distributor_id'))
         product_id = int(request.form.get('product_id'))
         quantity = int(request.form.get('quantity'))
-        
+
         try:
             # 1️⃣ Check available inventory
             cursor.execute("""
-                SELECT quantity_available 
-                FROM inventory 
-                WHERE product_id = %s AND manufacturer_id = %s
+                SELECT i.quantity_available, p.manufacturing_cost, p.unit_price
+                FROM inventory i
+                JOIN product p ON i.product_id = p.product_id
+                WHERE i.product_id = %s AND i.manufacturer_id = %s
             """, (product_id, manufacturer_id))
             inv_row = cursor.fetchone()
-            
+
             if not inv_row:
                 error = 'Inventory record not found for this product.'
             elif inv_row['quantity_available'] < quantity:
                 error = f"Insufficient stock! Only {inv_row['quantity_available']} units available."
             else:
-                # 2️⃣ Get product unit price
-                cursor.execute("SELECT unit_price FROM product WHERE product_id = %s", (product_id,))
-                product = cursor.fetchone()
-                if not product:
-                    error = 'Product not found.'
-                else:
-                    unit_price = Decimal(product['unit_price'])
-                    distributor_price = (unit_price * Decimal('1.10')).quantize(Decimal('0.01'))  # 10% markup
-                    
-                    # 3️⃣ Record allocation
-                    cursor.execute("""
-                        INSERT INTO allocation 
-                            (manufacturer_id, distributor_id, product_id, allocated_quantity, unit_price, status)
-                        VALUES (%s, %s, %s, %s, %s, 'completed')
-                    """, (manufacturer_id, distributor_id, product_id, quantity, distributor_price))
-                    
-                    # 4️⃣ Deduct from manufacturer inventory
-                    cursor.execute("""
-                        UPDATE inventory 
-                        SET quantity_available = quantity_available - %s 
-                        WHERE product_id = %s AND manufacturer_id = %s
-                    """, (quantity, product_id, manufacturer_id))
-                    
-                    # 5️⃣ Add/update distributor inventory (atomic)
-                    cursor.execute("""
-                        INSERT INTO distributor_inventory (distributor_id, product_id, quantity_available, unit_price)
-                        VALUES (%s, %s, %s, %s)
-                        ON DUPLICATE KEY UPDATE
-                            quantity_available = quantity_available + VALUES(quantity_available),
-                            unit_price = VALUES(unit_price)
-                    """, (distributor_id, product_id, quantity, distributor_price))
-                    
-                    conn.commit()
-                    message = f'✅ Successfully allocated {quantity} units to distributor.'
-        
+                # 2️⃣ Compute prices
+                cost_price = Decimal(inv_row['manufacturing_cost'])
+                manufacturer_unit_price = Decimal(inv_row['unit_price'])
+                distributor_price = (manufacturer_unit_price * Decimal('1.10')).quantize(Decimal('0.01'))  # 10% markup
+
+                # 3️⃣ Record allocation
+                cursor.execute("""
+                    INSERT INTO allocation 
+                        (manufacturer_id, distributor_id, product_id, allocated_quantity, unit_price, status)
+                    VALUES (%s, %s, %s, %s, %s, 'completed')
+                """, (manufacturer_id, distributor_id, product_id, quantity, distributor_price))
+
+                # 4️⃣ Deduct from manufacturer inventory
+                cursor.execute("""
+                    UPDATE inventory 
+                    SET quantity_available = quantity_available - %s 
+                    WHERE product_id = %s AND manufacturer_id = %s
+                """, (quantity, product_id, manufacturer_id))
+
+                # 5️⃣ Add/update distributor inventory using alias for MySQL 8+ compliance
+                cursor.execute("""
+                    INSERT INTO distributor_inventory (distributor_id, product_id, quantity_available, cost_price, unit_price)
+                    VALUES (%s, %s, %s, %s, %s) AS new
+                    ON DUPLICATE KEY UPDATE
+                        quantity_available = distributor_inventory.quantity_available + new.quantity_available,
+                        cost_price = new.cost_price,
+                        unit_price = new.unit_price
+                """, (distributor_id, product_id, quantity, cost_price, distributor_price))
+
+                conn.commit()
+                message = f'✅ Successfully allocated {quantity} units to distributor.'
+
         except Exception as e:
             conn.rollback()
             error = f"Error during allocation: {str(e)}"
-        
+    
     # Load distributor and product dropdowns
     cursor.execute("SELECT distributor_id, company_name FROM distributor ORDER BY company_name")
     distributors = cursor.fetchall()
@@ -521,6 +519,54 @@ def distributor_allocations():
     
     return render_template('distributor_allocations.html', allocations=allocations)
 
+@app.route('/distributor/customer_orders')
+@login_required
+def distributor_customer_orders():
+    if session.get('user_type') != 'distributor':
+        return redirect(url_for('home'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Get distributor ID
+    cursor.execute("SELECT distributor_id FROM distributor WHERE user_id = %s", (session['user_id'],))
+    distributor = cursor.fetchone()
+    distributor_id = distributor['distributor_id']
+
+    # ✅ Retrieve customer orders for products that this distributor currently has in inventory
+    cursor.execute("""
+        SELECT 
+            co.order_id,
+            co.order_date,
+            co.total_amount,
+            co.order_status,
+            co.payment_status,
+            c.first_name,
+            c.last_name,
+            p.product_name,
+            oi.quantity,
+            oi.unit_price,
+            di.quantity_available AS dist_stock
+        FROM customer_order co
+        JOIN order_item oi ON co.order_id = oi.order_id
+        JOIN product p ON oi.product_id = p.product_id
+        JOIN customer c ON co.customer_id = c.customer_id
+        JOIN distributor_inventory di 
+             ON di.product_id = oi.product_id 
+             AND di.distributor_id = oi.seller_id
+        WHERE oi.seller_type = 'distributor' 
+          AND oi.seller_id = %s
+        ORDER BY co.order_date DESC
+    """, (distributor_id,))
+
+    orders = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template('distributor_customer_orders.html', orders=orders)
+
+
 # ======================= CUSTOMER ROUTES =======================
 
 @app.route('/customer/dashboard')
@@ -566,16 +612,43 @@ def browse_products():
     cursor = conn.cursor(dictionary=True)
     
     if category:
-        cursor.execute("""SELECT DISTINCT p.product_id, p.product_name, p.category, p.description, p.unit_price, m.company_name
-                          FROM product p
-                          JOIN manufacturer m ON p.manufacturer_id = m.manufacturer_id
-                          WHERE p.category = %s
-                          ORDER BY p.product_name""", (category,))
+        cursor.execute("""
+            SELECT 
+                p.product_id,
+                p.product_name,
+                p.category,
+                p.description,
+                m.company_name,
+                COALESCE(
+                    (SELECT MIN(di.unit_price)
+                    FROM distributor_inventory di
+                    WHERE di.product_id = p.product_id AND di.quantity_available > 0),
+                    p.unit_price
+                ) AS display_price
+            FROM product p
+            JOIN manufacturer m ON p.manufacturer_id = m.manufacturer_id
+            WHERE p.category = %s
+            ORDER BY p.product_name
+        """, (category,))
     else:
-        cursor.execute("""SELECT DISTINCT p.product_id, p.product_name, p.category, p.description, p.unit_price, m.company_name
-                          FROM product p
-                          JOIN manufacturer m ON p.manufacturer_id = m.manufacturer_id
-                          ORDER BY p.product_name""")
+        cursor.execute("""
+            SELECT 
+                p.product_id,
+                p.product_name,
+                p.category,
+                p.description,
+                m.company_name,
+                COALESCE(
+                    (SELECT MIN(di.unit_price)
+                    FROM distributor_inventory di
+                    WHERE di.product_id = p.product_id AND di.quantity_available > 0),
+                    p.unit_price
+                ) AS display_price
+            FROM product p
+            JOIN manufacturer m ON p.manufacturer_id = m.manufacturer_id
+            ORDER BY p.product_name
+        """)
+
     
     products = cursor.fetchall()
     

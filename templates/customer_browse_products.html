@@ -17,7 +17,7 @@
         <p><strong>Category:</strong> {{ product.category }}</p>
         <p><strong>Manufacturer:</strong> {{ product.company_name }}</p>
         <p>{{ product.description }}</p>
-        <p class="price">Price: ₹{{ "%.2f"|format(product.unit_price) }}</p>
+        <p class="price">Price: ₹{{ "%.2f"|format(product.display_price) }}</p>
         <form method="POST" action="{{ url_for('place_order') }}" class="order-form">
             <input type="hidden" name="product_id" value="{{ product.product_id }}">
             <input type="number" name="quantity" value="1" min="1" required>

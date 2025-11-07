@@ -18,6 +18,7 @@
                     <a href="{{ url_for('distributor_dashboard') }}">Dashboard</a>
                     <a href="{{ url_for('distributor_inventory') }}">Inventory</a>
                     <a href="{{ url_for('distributor_allocations') }}">Allocations</a>
+                    <a href="{{ url_for('distributor_customer_orders') }}">Customer Orders</a>
                 {% elif session.user_type == 'customer' %}
                     <a href="{{ url_for('customer_dashboard') }}">Dashboard</a>
                     <a href="{{ url_for('browse_products') }}">Browse</a>
