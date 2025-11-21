@@ -1,0 +1,108 @@
+-- =============================================
+-- TRIGGERS, FUNCTION, STORED PROCEDURE FOR
+-- PRODUCT CHAIN DISTRIBUTION SCHEMA
+-- =============================================
+
+-- 1. Trigger: Log price changes of distributor inventory into price_change_history
+DELIMITER $$
+CREATE TRIGGER trg_dist_inventory_price_update
+BEFORE UPDATE ON distributor_inventory
+FOR EACH ROW
+BEGIN
+  IF OLD.unit_price != NEW.unit_price THEN
+    INSERT INTO price_change_history (
+      dist_inventory_id, distributor_id, product_id,
+      old_price, new_price,
+      old_markup_percent, new_markup_percent,
+      change_reason, changed_by
+    )
+    VALUES (
+      OLD.dist_inventory_id, OLD.distributor_id, OLD.product_id,
+      OLD.unit_price, NEW.unit_price,
+      OLD.markup_percent, NEW.markup_percent,
+      'Manual price update', NULL
+    );
+  END IF;
+END$$
+DELIMITER ;
+
+-- 2. Trigger: Record to audit_log on status change of customer_order
+DELIMITER $$
+CREATE TRIGGER trg_customer_order_status_change
+AFTER UPDATE ON customer_order
+FOR EACH ROW
+BEGIN
+  IF OLD.order_status != NEW.order_status THEN
+    INSERT INTO audit_log (
+      table_name, operation, user_id, old_value, new_value
+    ) VALUES (
+      'customer_order', 'UPDATE', NULL, OLD.order_status, NEW.order_status
+    );
+  END IF;
+END$$
+DELIMITER ;
+
+-- 3. Trigger: Reorder log for manufacturer inventory drop below threshold
+DELIMITER $$
+CREATE TRIGGER trg_inventory_reorder_log
+AFTER UPDATE ON inventory
+FOR EACH ROW
+BEGIN
+  IF NEW.quantity_available <= NEW.reorder_level AND OLD.quantity_available > OLD.reorder_level THEN
+    INSERT INTO reorder_log (product_id, manufacturer_id, quantity_needed, status)
+    VALUES (
+      NEW.product_id, NEW.manufacturer_id, (NEW.reorder_level * 2 - NEW.quantity_available), 'pending'
+    );
+  END IF;
+END$$
+DELIMITER ;
+
+-- 4. Function: Get distributor credit left
+DELIMITER $$
+CREATE FUNCTION get_distributor_credit_left(dist_id INT)
+RETURNS DECIMAL(12, 2)
+DETERMINISTIC
+BEGIN
+  DECLARE credit DECIMAL(12,2);
+  SELECT credit_limit 
+    - IFNULL((
+        SELECT SUM(total_amount)
+        FROM allocation
+        WHERE distributor_id = dist_id AND status IN ('pending','completed')
+      ), 0)
+    INTO credit
+  FROM distributor
+  WHERE distributor_id = dist_id;
+  RETURN credit;
+END$$
+DELIMITER ;
+
+-- 5. Stored Procedure: Log distributor reorder requirements for all low stocks
+DELIMITER $$
+CREATE PROCEDURE log_distributor_reorders()
+BEGIN
+    INSERT INTO reorder_log (product_id, manufacturer_id, quantity_needed, status)
+    SELECT
+      di.product_id,
+      p.manufacturer_id,
+      (di.reorder_level * 2 - di.quantity_available) AS quantity_needed,
+      'pending'
+    FROM distributor_inventory di
+    JOIN product p ON di.product_id = p.product_id
+    WHERE di.quantity_available <= di.reorder_level
+    ON DUPLICATE KEY UPDATE reorder_date = CURRENT_TIMESTAMP;
+END$$
+DELIMITER ;
+
+-- 6. Usage Examples for Provided Views:
+
+-- To see distributor sales summary:
+-- SELECT * FROM distributor_sales_summary;
+
+-- To see distributor's top-selling products:
+-- SELECT * FROM top_products_by_distributor WHERE distributor_id = [your_id];
+
+-- To get low stock alerts for distributors:
+-- SELECT * FROM distributor_low_stock_alert;
+
+-- End of File
